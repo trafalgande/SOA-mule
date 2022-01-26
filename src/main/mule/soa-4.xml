@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+    <http:listener-config name="soa-4-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="soa-4-config" api="resource::7320a393-d3ee-413c-9a9a-eff41fe87eca:soa-4:1.0.3:raml:zip:soa-4.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="54c8a84b-c84e-4d6b-aa78-92d24668c5e4" >
+		<wsc:connection wsdlLocation="http://localhost:8085/SoaWebServiceImpl?wsdl" service="SoaWebServiceImplService" port="SoaWebServiceImplPort" address="http://localhost:8085/SoaWebServiceImpl" />
+	</wsc:config>
+	<flow name="soa-4-main">
+        <http:listener config-ref="soa-4-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="soa-4-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="soa-4-console">
+        <http:listener config-ref="soa-4-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="soa-4-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="delete:\grammy\band\(band-id)\participants:soa-4-config">
+        <logger level="INFO" message="delete:\grammy\band\(band-id)\participants:soa-4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="a9c4885f-1e5e-4e43-8dbc-62b680682f4b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://ws.soap.soa2.pepe.ifmo.se/
+---
+{
+	ns0#removeParticipantFromBand: {
+		arg0: attributes.uriParams."band-id"
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume operation="removeParticipantFromBand" doc:name="Consume" doc:id="78687806-83f1-44d0-9bcf-31948eba03b2" config-ref="Web_Service_Consumer_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="a0f6d781-fa72-4663-9b25-a51fb6d6808c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+ns ns0 http://ws.soap.soa2.pepe.ifmo.se/
+---
+{
+	numberOfParticipants: payload.body.ns0#removeParticipantFromBandResponse.return.numberOfParticipants,
+	singles: payload.body.ns0#removeParticipantFromBandResponse.return.*singles map ( single , indexOfSingle ) -> single,
+	name: payload.body.ns0#removeParticipantFromBandResponse.return.name,
+	coordinates: payload.body.ns0#removeParticipantFromBandResponse.return.coordinates,
+	genre: payload.body.ns0#removeParticipantFromBandResponse.return.genre,
+	description: payload.body.ns0#removeParticipantFromBandResponse.return.description,
+	label: payload.body.ns0#removeParticipantFromBandResponse.return.label
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="post:\grammy\band\(band-id)\singles:application\json:soa-4-config">
+        <logger level="INFO" message="post:\grammy\band\(band-id)\singles:application\json:soa-4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="9ade0659-9657-4d4e-b627-083ef9835b92" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://ws.soap.soa2.pepe.ifmo.se/
+---
+{
+	ns0#addSingleToBand: {
+		arg0: attributes.uriParams."band-id",
+		arg1: {
+			title: payload.title
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume operation="addSingleToBand" doc:name="Consume" doc:id="4b9f1f21-6a08-468d-9643-1015f723eeeb" config-ref="Web_Service_Consumer_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="0013d1a0-3750-458a-84cc-72a891cf1d2a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+ns ns0 http://ws.soap.soa2.pepe.ifmo.se/
+---
+{
+	numberOfParticipants: payload.body.ns0#addSingleToBandResponse.return.numberOfParticipants,
+	singles: payload.body.ns0#addSingleToBandResponse.return.*singles map ( single , indexOfSingle ) -> single,
+	name: payload.body.ns0#addSingleToBandResponse.return.name,
+	coordinates: payload.body.ns0#addSingleToBandResponse.return.coordinates,
+	genre: payload.body.ns0#addSingleToBandResponse.return.genre,
+	description: payload.body.ns0#addSingleToBandResponse.return.description,
+	label: payload.body.ns0#addSingleToBandResponse.return.label
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+</mule>
